@@ -46,6 +46,7 @@ Cross-cutting requirements from the specs: every layer is idempotent (re-runs ne
 - **Never commit directly to `main`.** `main` only receives promotions from `dev` after tests pass.
 - Every piece of work starts in its own branch off `dev`, named `<type>/<kebab-case-slug>` — types: `feature/` (spec implementation), `fix/`, `docs/`, `chore/`.
 - Flow: `<type>/*` → merge into `dev` (integration + testing happens here) → after tests validate (the spec's "Critérios de aceite" are the test cases), `dev` → `main`.
+- **Delete the feature branch as soon as its PR merges into `dev`** — remote (the repo has auto-delete on merge enabled) and local (`git branch -d`). Branches are short-lived; long-lived branches are only `main` and `dev`.
 - Commit messages follow `tipo: resumo` convention (`feat`, `fix`, `docs`, `test`, `refactor`, `chore`), small and descriptive.
 
 ## Execution interfaces defined by the specs
