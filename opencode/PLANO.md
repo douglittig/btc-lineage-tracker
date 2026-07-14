@@ -30,8 +30,10 @@ Cada spec deve estar **funcionando** (não apenas escrita) antes de iniciar a pr
 **Entregáveis:**
 - Módulo de ingestão HTTP paginada (mempool.space REST API)
 - Validação de endereço Bitcoin (checksum)
+- Busca de transações não confirmadas via `GET /api/address/:address/txs/mempool` (persistidas com `block_height=null`)
 - Persistência em Delta Lake `bronze_address_txs`
 - Idempotência via MERGE (upsert por `(address, txid)`)
+- Log de contagem de transações novas inseridas vs. já existentes
 
 **Estrutura de arquivos prevista em `opencode/`:**
 ```
@@ -63,7 +65,7 @@ opencode/
 - Testes unitários para validação de endereço (mocks)
 - Testes de integração com mempool.space (endereços públicos conhecidos)
 - Teste de idempotência: rodar duas vezes, contar linhas com Delta
-- Simular 429? Se API não retornar, usar patch/mock no HTTP client
+- Simular 429 com mock/patch no HTTP client, já que a API real não retorna 429 sob demanda
 
 ---
 
@@ -100,7 +102,7 @@ opencode/
 
 **Estratégia de teste:**
 - Fixture: tx coinbase conhecida (ex.: genesis ou bloco baixo)
--Fixture: tx normal com múltiplos inputs/outputs
+- Fixture: tx normal com múltiplos inputs/outputs
 - Verificar tipos de script esperados: p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr
 
 ---
@@ -108,12 +110,12 @@ opencode/
 ### Spec-03 — Grafo de linhagem (BFS por hops)
 
 **Entregáveis:**
-- BFS iterativo (não recursão) por hops
+- BFS iterativo (não recursão) por hops que ORQUESTRA a reexecução de spec-01+02 para cada endereço novo da fronteira (não reimplementa ingestão/modelagem)
 - Expansão backward: seguir `vin.prev_txid` até origem
 - Expansão forward: verificar `outspend` API, seguir para transação consumidora
 - Anti-ciclo: conjunto de endereços visitados
 - Limite de fan-out (default 500) com truncamento
-- Coinbase =终点 backward (`is_coinbase_origin = true`)
+- Coinbase = fim de linha backward (`is_coinbase_origin = true`)
 - Tabela Delta `gold_lineage_edges`
 
 **Estrutura de arquivos prevista em `opencode/`:**
@@ -200,8 +202,8 @@ opencode/
 | REST puro (sem SDK) para mempool.space | Mantém a spec auditável e o código transparente |
 | Idempotência como regra (MERGE / overwrite) | Evita duplicação em reexecuções, crítico para layered architecture |
 | BFS iterativo (não recursivo) | Evita stack overflow, alinhado com Spark (DataFrame ops) |
-| CoinBASE como fim de linha backward | Correto semânticamente — não é erro, é origem do valor |
-| Sem mora de preço/mercado (nunca) | Regra de escopo do projeto — dataset público adversarial, não trading |
+| CoinBASE como fim de linha backward | Correto semanticamente — não é erro, é origem do valor |
+| Sem lógica de preço/mercado (nunca) | Regra de escopo do projeto — dataset público adversarial, não trading |
 
 ---
 
@@ -209,9 +211,9 @@ opencode/
 
 | Risco | Impacto | Mitigação |
 |---|---|---|
-| API mempool.rate limiting (429) bloqueia execução | Alto | Backoff exponencial, 3 retries, uma cadeia de paginação por vez |
+| API mempool.space: rate limiting (429) bloqueia execução | Alto | Backoff exponencial, 3 retries, uma cadeia de paginação por vez |
 | Explosão combinatória (endereço com milhares de txs) | Alto | `max_fanout=500`, `max_hops` default 2, truncamento com flag |
-| Endereços sem símbolo decodificável (OP_RETURN etc.) | Baixo | Salvar `address=null`, preencher `script_type`, logar warning |
+| Outputs sem endereço decodificável (OP_RETURN etc.) | Baixo | Salvar `address=null`, preencher `script_type`, logar warning |
 | Coinbase origin mal tratado (erro vs. fim de linha) | Médio | Identificar via `vin[0].is_coinbase`, marcar explicitamente |
 | Ciclo no grafo (endereços reentrada) | Médio | Conjunto de visited addresses (obrigatório) |
 | Falha de rede (timeout) | Médio | Retry com backoff (3 tentativas) |
@@ -222,16 +224,18 @@ opencode/
 
 ### Milestone 1 — Spec-01 (Ingestão)
 - [ ] Validação de endereço funciona (checksum)
-- [ ] Paginação busca todas as txs (vazio sinaliza fim)
+- [ ] Paginação busca todas as transações confirmadas (vazio sinaliza fim)
+- [ ] Busca de transações não confirmadas via `/txs/mempool` (persistidas com `block_height=null`)
 - [ ] Delta table `bronze_address_txs` criada com schema correto
 - [ ] Idempotência verificada (duas execuções → mesma contagem)
 - [ ] 429 tratado com backoff
+- [ ] Log de contagem novas vs. já existentes
 
 ### Milestone 2 — Spec-02 (Silver)
 - [ ] Schema explícito definido sem inferência automática
 - [ ] Três tabelas criadas: `silver_tx`, `silver_vin`, `silver_vout`
 - [ ] Coinbase identificada corretamente
-- [ ] Conservation de valor validada em 1 tx manual
+- [ ] Conservação de valor validada em 1 tx manual
 - [ ] Idempotência verificada
 
 ### Milestone 3 — Spec-03 (Grafo)
@@ -240,6 +244,7 @@ opencode/
 - [ ] Fan-out truncamento funciona
 - [ ] gold_lineage_edges criado com schema completo
 - [ ] Hops 0 e 1 validados manualmente contra block explorer
+- [ ] Critério de superset: max_hops=2 ⊇ max_hops=1
 
 ### Milestone 4 — Spec-04 (CLI)
 - [ ] Comando `trace --address --hops` funciona ponta a ponta
@@ -251,7 +256,7 @@ opencode/
 ### Definição de "Pronto" do Projeto (v1)
 Rodar `trace --address <endereço_público> --hops 2` e obter:
 - Grafo de linhagem correto (validado manualmente contra block explorer)
-- Tempo de execução razoável (mesurar baseline)
+- Tempo de execução razoável (medir baseline)
 - Reexecuções não duplicam dados
 - Sem erros de rate limiting ou rede
 
@@ -259,12 +264,12 @@ Rodar `trace --address <endereço_público> --hops 2` e obter:
 
 ## Considerações Finais
 
-- **Nada fora de `opencode/`** — isolamento strito conforme regra de agent folder isolation
+- **Nada fora de `opencode/`** — isolamento estrito conforme regra de agent folder isolation
 - **Sem modificações nas specs** — elas são fonte única de verdade
 - **Cada spec é entregável isoladamente** — testar antes de avançar
-- **Commit message padrão**: `feat: <descrição>`, commits pequenos
+- **Commit message padrão**: seguir convenção `tipo: resumo` (tipos: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`), commits pequenos
 - **Branch naming**: `feature/<slug>` para cada spec
-- **PR workflow**: master → dev (agent merges), dev → main (owner merges)
+- **PR workflow**: criar branch `feature/<slug>` a partir de dev → PR da feature branch para dev → depois PR da MESMA feature branch para main (gate do dono)
 
 ---
 
