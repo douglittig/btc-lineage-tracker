@@ -69,7 +69,7 @@ omni upgrade        # atualizar
 
 ## Genie Code como agente customizado — achado (13/07, resolve o ponto em aberto nº 1)
 
-A documentação do Omnigent **não suporta o Genie Code como harness**. Os executors suportados são: `claude-sdk`/`claude-native`, `codex`/`codex-native`, `cursor`/`cursor-native`, `opencode`, `hermes`/`hermes-native`, `pi`/`pi-native`, `openai-agents`. "Agente customizado" no Omnigent significa **prompt + tools (funções Python, MCP, sub-agentes) rodando sobre um desses executors** — não um mecanismo pra embrulhar um agente externo arbitrário.
+A documentação do Omnigent **não suporta o Genie Code como harness**. Os executors suportados são: `claude-sdk`/`claude-native`, `codex`/`codex-native`, `cursor`/`cursor-native`, `opencode`, `hermes`/`hermes-native`, `pi`/`pi-native`, `openai-agents`. *(Adendo, mesmo dia: a spec YAML atual já lista mais executors — `copilot`, `kiro-native`, `antigravity`, `qwen`, `kimi`. A lista é viva; a conclusão sobre o Genie Code não muda, porque o bloqueio é do lado dele — sem CLI/API/MCP exposto. Passo a passo do Copilot em `guia-harnesses.md`.)* "Agente customizado" no Omnigent significa **prompt + tools (funções Python, MCP, sub-agentes) rodando sobre um desses executors** — não um mecanismo pra embrulhar um agente externo arbitrário.
 
 Do lado do Genie Code: ele roda **dentro do workspace** (notebooks, SQL editor, Lakeflow, dashboards, MLflow), sem CLI/REST/SDK documentados — ele *consome* MCP servers, não expõe um.
 
