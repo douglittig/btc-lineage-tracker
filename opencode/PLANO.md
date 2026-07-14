@@ -202,7 +202,7 @@ opencode/
 | REST puro (sem SDK) para mempool.space | Mantém a spec auditável e o código transparente |
 | Idempotência como regra (MERGE / overwrite) | Evita duplicação em reexecuções, crítico para layered architecture |
 | BFS iterativo (não recursivo) | Evita stack overflow, alinhado com Spark (DataFrame ops) |
-| CoinBASE como fim de linha backward | Correto semanticamente — não é erro, é origem do valor |
+| Coinbase como fim de linha backward | Correto semanticamente — não é erro, é origem do valor |
 | Sem lógica de preço/mercado (nunca) | Regra de escopo do projeto — dataset público adversarial, não trading |
 
 ---
