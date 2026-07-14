@@ -43,10 +43,11 @@ Cross-cutting requirements from the specs: every layer is idempotent (re-runs ne
 
 ## Git workflow (binding)
 
-- **Never commit directly to `main`.** `main` only receives promotions from `dev` after tests pass.
-- Every piece of work starts in its own branch off `dev`, named `<type>/<kebab-case-slug>` — types: `feature/` (spec implementation), `fix/`, `docs/`, `chore/`.
-- Flow: `<type>/*` → merge into `dev` (integration + testing happens here) → after tests validate (the spec's "Critérios de aceite" are the test cases), `dev` → `main`.
-- **Delete the feature branch as soon as its PR merges into `dev`** — remote (the repo has auto-delete on merge enabled) and local (`git branch -d`). Branches are short-lived; long-lived branches are only `main` and `dev`.
+- **Never commit directly to `main` or `dev`.** All work happens on short-lived branches off `dev`, named `<type>/<kebab-case-slug>` — types: `feature/` (spec implementation), `fix/`, `docs/`, `chore/`.
+- Flow — **the same feature branch is promoted twice; there is no `dev` → `main` merge**:
+  1. PR `<type>/*` → `dev` (integration + testing; the spec's "Critérios de aceite" are the test cases). Merging this PR is within the agent's authority.
+  2. After tests validate, PR **the same branch** → `main`. Merging into `main` is the owner's gate — the agent opens the PR and stops.
+- **Delete the feature branch only after its PR into `main` merges** (remote + local, then `git fetch --prune`). The repo's auto-delete-on-merge setting must stay OFF — it would kill the branch at the `dev` merge, before the `main` promotion. Long-lived branches are only `main` and `dev`.
 - Commit messages follow `tipo: resumo` convention (`feat`, `fix`, `docs`, `test`, `refactor`, `chore`), small and descriptive.
 
 ## Execution interfaces defined by the specs
